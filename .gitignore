@@ -9,4 +9,5 @@ test-ledger
 app/.env
 app/agent-keypair.json
 app/test-keys/
+app/notify-config.json
 ui/.env.local
