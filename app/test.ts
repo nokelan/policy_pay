@@ -60,10 +60,15 @@ async function main() {
   );
 
   const budgetLimit = new anchor.BN(1_000_000); // lamports
+  // Kept above the largest amount used in the "exceeding budget" guard-rail
+  // check below, so that check still hits BudgetExceeded rather than the
+  // new PerTxLimitExceeded check (which runs first).
+  const maxPerTx = new anchor.BN(20_000_000);
+  const validUntil = new anchor.BN(Math.floor(Date.now() / 1000) + 365 * 24 * 60 * 60);
 
   console.log("== 1. initialize_policy ==");
   await program.methods
-    .initializePolicy(agent.publicKey, recipient.publicKey, budgetLimit)
+    .initializePolicy(agent.publicKey, [recipient.publicKey], budgetLimit, maxPerTx, validUntil)
     .accounts({
       owner: owner.publicKey,
       policy: policyPda,
@@ -154,7 +159,7 @@ async function main() {
   console.log("== 5. update_policy ==");
   const newBudget = new anchor.BN(9_999_999);
   await program.methods
-    .updatePolicy(agent.publicKey, newBudget, wrongRecipient.publicKey)
+    .updatePolicy(agent.publicKey, newBudget, maxPerTx, validUntil)
     .accounts({
       owner: owner.publicKey,
       policy: policyPda,
@@ -164,10 +169,48 @@ async function main() {
   if (policy.budgetLimit.toString() !== newBudget.toString()) {
     throw new Error("[FAIL] update_policy: budget_limit not updated");
   }
-  if (!policy.allowedRecipient.equals(wrongRecipient.publicKey)) {
-    throw new Error("[FAIL] update_policy: allowed_recipient not updated");
-  }
   console.log("[OK]   policy updated, new budget_limit =", policy.budgetLimit.toString());
+
+  console.log("== 6. multi-merchant: add_recipient / remove_recipient ==");
+  await program.methods
+    .addRecipient(wrongRecipient.publicKey)
+    .accounts({ owner: owner.publicKey, policy: policyPda })
+    .rpc();
+  policy = await (program.account as any).policy.fetch(policyPda);
+  if (policy.allowedRecipients.length !== 2) {
+    throw new Error("[FAIL] add_recipient: expected 2 allowed recipients");
+  }
+  console.log("[OK]   recipient added, allow list length =", policy.allowedRecipients.length);
+
+  await expectError(
+    "add_recipient duplicate",
+    () =>
+      program.methods
+        .addRecipient(wrongRecipient.publicKey)
+        .accounts({ owner: owner.publicKey, policy: policyPda })
+        .rpc(),
+    "RecipientAlreadyRegistered"
+  );
+
+  await program.methods
+    .removeRecipient(wrongRecipient.publicKey)
+    .accounts({ owner: owner.publicKey, policy: policyPda })
+    .rpc();
+  policy = await (program.account as any).policy.fetch(policyPda);
+  if (policy.allowedRecipients.length !== 1) {
+    throw new Error("[FAIL] remove_recipient: expected 1 allowed recipient");
+  }
+  console.log("[OK]   recipient removed, allow list length =", policy.allowedRecipients.length);
+
+  await expectError(
+    "remove_recipient not registered",
+    () =>
+      program.methods
+        .removeRecipient(wrongRecipient.publicKey)
+        .accounts({ owner: owner.publicKey, policy: policyPda })
+        .rpc(),
+    "RecipientNotFound"
+  );
 
   console.log("\nALL CHECKS PASSED");
 }

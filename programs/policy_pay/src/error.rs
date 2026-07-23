@@ -12,4 +12,14 @@ pub enum ErrorCode {
     BudgetExceeded,
     #[msg("Vault balance is insufficient to cover this payment and stay rent-exempt")]
     InsufficientVaultBalance,
+    #[msg("Payment amount exceeds the policy's per-transaction limit")]
+    PerTxLimitExceeded,
+    #[msg("Policy has expired")]
+    PolicyExpired,
+    #[msg("Policy already has the maximum number of allowed recipients")]
+    RecipientListFull,
+    #[msg("Recipient is already on the policy's allow list")]
+    RecipientAlreadyRegistered,
+    #[msg("Recipient is not currently on the policy's allow list")]
+    RecipientNotFound,
 }

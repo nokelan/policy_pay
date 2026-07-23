@@ -11,9 +11,12 @@ interface ParseResult {
   policyPda: string;
   merchant: string;
   merchantPubkey: string;
+  recipientAlreadyAllowed?: boolean;
   budgetLamports: string;
   budgetSol: number;
   agentPubkey: string;
+  maxPerTxLamports: string;
+  validUntil: number;
 }
 
 export default function Home() {
@@ -57,18 +60,26 @@ export default function Home() {
       const agentPubkey = new PublicKey(parsed.agentPubkey);
       const merchantPubkey = new PublicKey(parsed.merchantPubkey);
       const budgetLamports = new anchor.BN(parsed.budgetLamports);
+      const maxPerTxLamports = new anchor.BN(parsed.maxPerTxLamports);
+      const validUntil = new anchor.BN(parsed.validUntil);
 
       setStatus(`${parsed.action === "initialize" ? "정책 생성" : "정책 갱신"} 트랜잭션 서명 대기 중...`);
 
       let sig: string;
       if (parsed.action === "initialize") {
         sig = await program.methods
-          .initializePolicy(agentPubkey, merchantPubkey, budgetLamports)
+          .initializePolicy(agentPubkey, [merchantPubkey], budgetLamports, maxPerTxLamports, validUntil)
           .accounts({ owner: publicKey, policy: policyPda, systemProgram: SystemProgram.programId })
           .rpc();
       } else {
+        if (!parsed.recipientAlreadyAllowed) {
+          await program.methods
+            .addRecipient(merchantPubkey)
+            .accounts({ owner: publicKey, policy: policyPda })
+            .rpc();
+        }
         sig = await program.methods
-          .updatePolicy(agentPubkey, budgetLamports, merchantPubkey)
+          .updatePolicy(agentPubkey, budgetLamports, maxPerTxLamports, validUntil)
           .accounts({ owner: publicKey, policy: policyPda })
           .rpc();
       }

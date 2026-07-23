@@ -86,6 +86,7 @@ export async function POST(request: Request) {
   if (!existing) {
     const agent = Keypair.generate();
     fs.writeFileSync(AGENT_KEYPAIR_PATH, JSON.stringify(Array.from(agent.secretKey)));
+    const validUntil = Math.floor(Date.now() / 1000) + 365 * 24 * 60 * 60;
     return NextResponse.json({
       action: "initialize",
       policyPda: policyPda.toBase58(),
@@ -94,6 +95,8 @@ export async function POST(request: Request) {
       budgetLamports: budgetLamports.toString(),
       budgetSol,
       agentPubkey: agent.publicKey.toBase58(),
+      maxPerTxLamports: budgetLamports.toString(),
+      validUntil,
     });
   }
 
@@ -108,14 +111,27 @@ export async function POST(request: Request) {
   });
   const program = new anchor.Program(idl, readonlyProvider);
   const current = await (program.account as any).policy.fetch(policyPda);
+  const allowedRecipients: PublicKey[] = current.allowedRecipients;
+  const merchantPubkey = new PublicKey(merchantPubkeyStr);
+  const recipientAlreadyAllowed = allowedRecipients.some((r) => r.equals(merchantPubkey));
+
+  if (!recipientAlreadyAllowed && allowedRecipients.length >= 5) {
+    return NextResponse.json(
+      { error: "상점은 이미 최대 5곳까지 등록되어 있습니다. 새 상점을 추가하려면 먼저 하나를 삭제하세요." },
+      { status: 400 }
+    );
+  }
 
   return NextResponse.json({
     action: "update",
     policyPda: policyPda.toBase58(),
     merchant: intent.merchant,
     merchantPubkey: merchantPubkeyStr,
+    recipientAlreadyAllowed,
     budgetLamports: budgetLamports.toString(),
     budgetSol,
     agentPubkey: current.agent.toBase58(),
+    maxPerTxLamports: current.maxPerTx.toString(),
+    validUntil: current.validUntil.toNumber(),
   });
 }

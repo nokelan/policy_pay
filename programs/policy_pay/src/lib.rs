@@ -1,11 +1,13 @@
 pub mod constants;
 pub mod error;
+pub mod events;
 pub mod instructions;
 pub mod state;
 
 use anchor_lang::prelude::*;
 
 pub use constants::*;
+pub use events::*;
 pub use instructions::*;
 pub use state::*;
 
@@ -18,14 +20,18 @@ pub mod policy_pay {
     pub fn initialize_policy(
         ctx: Context<InitializePolicy>,
         agent: Pubkey,
-        allowed_recipient: Pubkey,
+        allowed_recipients: Vec<Pubkey>,
         budget_limit: u64,
+        max_per_tx: u64,
+        valid_until: i64,
     ) -> Result<()> {
         crate::instructions::initialize_policy::handle_initialize_policy(
             ctx,
             agent,
-            allowed_recipient,
+            allowed_recipients,
             budget_limit,
+            max_per_tx,
+            valid_until,
         )
     }
 
@@ -33,14 +39,24 @@ pub mod policy_pay {
         ctx: Context<UpdatePolicy>,
         new_agent: Pubkey,
         new_budget_limit: u64,
-        new_allowed_recipient: Pubkey,
+        new_max_per_tx: u64,
+        new_valid_until: i64,
     ) -> Result<()> {
         crate::instructions::update_policy::handle_update_policy(
             ctx,
             new_agent,
             new_budget_limit,
-            new_allowed_recipient,
+            new_max_per_tx,
+            new_valid_until,
         )
+    }
+
+    pub fn add_recipient(ctx: Context<AddRecipient>, recipient: Pubkey) -> Result<()> {
+        crate::instructions::add_recipient::handle_add_recipient(ctx, recipient)
+    }
+
+    pub fn remove_recipient(ctx: Context<RemoveRecipient>, recipient: Pubkey) -> Result<()> {
+        crate::instructions::remove_recipient::handle_remove_recipient(ctx, recipient)
     }
 
     pub fn deposit(ctx: Context<Deposit>, amount: u64) -> Result<()> {

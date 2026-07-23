@@ -97,15 +97,28 @@ async function main() {
     // 최초 등록: 이 정책의 자동결제를 수행할 agent 키를 새로 생성해 로컬에 보관한다.
     const agent = Keypair.generate();
     fs.writeFileSync(AGENT_KEYPAIR_PATH, JSON.stringify(Array.from(agent.secretKey)));
+    const validUntil = new anchor.BN(Math.floor(Date.now() / 1000) + 365 * 24 * 60 * 60);
     await program.methods
-      .initializePolicy(agent.publicKey, merchantPubkey, budgetLamports)
+      .initializePolicy(agent.publicKey, [merchantPubkey], budgetLamports, budgetLamports, validUntil)
       .accounts({ owner: owner.publicKey, policy: policyPda, systemProgram: SystemProgram.programId })
       .rpc();
     console.log(`[OK] 정책 생성 완료. agent=${agent.publicKey.toBase58()}, budget=${budgetSol.toFixed(6)} SOL, recipient=${intent.merchant}`);
   } else {
     const current = await (program.account as any).policy.fetch(policyPda);
+    const alreadyAllowed = (current.allowedRecipients as PublicKey[]).some((r) => r.equals(merchantPubkey));
+    if (!alreadyAllowed) {
+      if (current.allowedRecipients.length >= 5) {
+        console.error(`[오류] 상점은 이미 최대 5곳까지 등록되어 있습니다. 새 상점을 추가하려면 먼저 하나를 삭제하세요.`);
+        process.exit(1);
+      }
+      await program.methods
+        .addRecipient(merchantPubkey)
+        .accounts({ owner: owner.publicKey, policy: policyPda })
+        .rpc();
+      console.log(`[OK] 상점 "${intent.merchant}" 결제처로 추가됨`);
+    }
     await program.methods
-      .updatePolicy(current.agent, budgetLamports, merchantPubkey)
+      .updatePolicy(current.agent, budgetLamports, current.maxPerTx, current.validUntil)
       .accounts({ owner: owner.publicKey, policy: policyPda })
       .rpc();
     console.log(`[OK] 정책 갱신 완료. budget=${budgetSol.toFixed(6)} SOL, recipient=${intent.merchant}`);
