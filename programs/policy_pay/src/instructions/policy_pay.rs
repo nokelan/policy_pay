@@ -26,6 +26,12 @@ pub fn handle_policy_pay(ctx: Context<PolicyPay>, amount: u64) -> Result<()> {
         ErrorCode::RecipientNotAllowed
     );
 
+    let now = Clock::get()?.unix_timestamp;
+    if now - policy.period_start >= PERIOD_SECONDS {
+        policy.spent = 0;
+        policy.period_start = now;
+    }
+
     let new_spent = policy
         .spent
         .checked_add(amount)

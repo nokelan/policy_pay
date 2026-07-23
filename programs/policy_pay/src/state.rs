@@ -8,5 +8,6 @@ pub struct Policy {
     pub allowed_recipient: Pubkey,
     pub budget_limit: u64,
     pub spent: u64,
+    pub period_start: i64,
     pub bump: u8,
 }

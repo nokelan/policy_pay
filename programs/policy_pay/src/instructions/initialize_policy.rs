@@ -29,6 +29,7 @@ pub fn handle_initialize_policy(
     policy.allowed_recipient = allowed_recipient;
     policy.budget_limit = budget_limit;
     policy.spent = 0;
+    policy.period_start = Clock::get()?.unix_timestamp;
     policy.bump = ctx.bumps.policy;
 
     msg!("Policy initialized: budget_limit = {}", budget_limit);

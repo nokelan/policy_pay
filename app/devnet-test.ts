@@ -1,3 +1,4 @@
+import "dotenv/config";
 import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
@@ -31,7 +32,13 @@ async function expectError(label: string, fn: () => Promise<unknown>, expected: 
 }
 
 async function main() {
-  const connection = new Connection("https://api.devnet.solana.com", "confirmed");
+  if (!process.env.HELIUS_API_KEY) {
+    throw new Error("HELIUS_API_KEY is not set in app/.env");
+  }
+  const connection = new Connection(
+    `https://devnet.helius-rpc.com/?api-key=${process.env.HELIUS_API_KEY}`,
+    "confirmed"
+  );
 
   const funder = loadKeypair(path.join(os.homedir(), ".config/solana/id.json"));
   // Use a fresh throwaway owner per run: the policy PDA is derived from the
