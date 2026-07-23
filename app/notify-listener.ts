@@ -3,11 +3,12 @@ import * as fs from "fs";
 import * as path from "path";
 import * as anchor from "@coral-xyz/anchor";
 import { Connection, PublicKey } from "@solana/web3.js";
+import { decryptSecret } from "./secret";
 
 const CONFIG_PATH = path.join(__dirname, "notify-config.json");
 
 interface NotifyEntry {
-  botToken: string;
+  botTokenEnc: string;
   chatId: string;
   ownerPubkey: string;
 }
@@ -83,7 +84,7 @@ async function main() {
           `시각: ${new Date(timestamp * 1000).toLocaleString("ko-KR")}\n` +
           `tx: ${logInfo.signature}`;
 
-        sendTelegramMessage(entry.botToken, entry.chatId, text).catch((err) =>
+        sendTelegramMessage(decryptSecret(entry.botTokenEnc), entry.chatId, text).catch((err) =>
           console.error("[ERROR] sendTelegramMessage threw:", err)
         );
       }

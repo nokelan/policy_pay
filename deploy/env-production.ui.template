@@ -1,0 +1,3 @@
+# VPS에서 /var/www/policy-pay/ui/.env.production 로 저장 (실제 값 채운 뒤 chmod 600)
+GEMINI_API_KEY=
+NOTIFY_CONFIG_KEY=

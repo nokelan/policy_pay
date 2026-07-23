@@ -4,6 +4,7 @@ import * as path from "path";
 import { GoogleGenAI, Type } from "@google/genai";
 import * as anchor from "@coral-xyz/anchor";
 import { Connection, Keypair, PublicKey } from "@solana/web3.js";
+import { checkRateLimit } from "../../../lib/rate-limit";
 
 const REPO_ROOT = path.join(process.cwd(), "..");
 const MERCHANTS_PATH = path.join(REPO_ROOT, "app", "merchants.json");
@@ -54,6 +55,9 @@ export async function POST(request: Request) {
   const { text, ownerPubkey } = await request.json();
   if (!text || !ownerPubkey) {
     return NextResponse.json({ error: "text, ownerPubkey는 필수입니다." }, { status: 400 });
+  }
+  if (!checkRateLimit(`parse-policy:${ownerPubkey}`, 10, 60 * 1000)) {
+    return NextResponse.json({ error: "요청이 너무 잦습니다. 잠시 후 다시 시도하세요." }, { status: 429 });
   }
 
   const merchants = JSON.parse(fs.readFileSync(MERCHANTS_PATH, "utf-8"));

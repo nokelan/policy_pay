@@ -1,6 +1,8 @@
 .anchor
 .DS_Store
-target
+target/*
+!target/idl
+!target/idl/policy_pay.json
 **/*.rs.bk
 node_modules
 test-ledger

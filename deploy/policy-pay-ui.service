@@ -1,0 +1,21 @@
+# 설치: sudo cp deploy/policy-pay-ui.service /etc/systemd/system/
+#      sudo systemctl daemon-reload
+#      sudo systemctl enable --now policy-pay-ui
+
+[Unit]
+Description=policy_pay (Allowance) Next.js UI
+After=network.target
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/var/www/policy-pay/ui
+Environment=NODE_ENV=production
+Environment=PORT=3100
+EnvironmentFile=/var/www/policy-pay/ui/.env.production
+ExecStart=/usr/bin/npm run start
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
