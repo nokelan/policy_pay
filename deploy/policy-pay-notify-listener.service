@@ -11,7 +11,7 @@ Type=simple
 User=ubuntu
 WorkingDirectory=/var/www/policy-pay/app
 EnvironmentFile=/var/www/policy-pay/app/.env.production
-ExecStart=/usr/bin/npm run notify-listener
+ExecStart=/home/ubuntu/.nvm/versions/node/v24.18.0/bin/npm run notify-listener
 Restart=on-failure
 RestartSec=5
 

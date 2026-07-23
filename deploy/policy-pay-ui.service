@@ -13,7 +13,7 @@ WorkingDirectory=/var/www/policy-pay/ui
 Environment=NODE_ENV=production
 Environment=PORT=3100
 EnvironmentFile=/var/www/policy-pay/ui/.env.production
-ExecStart=/usr/bin/npm run start
+ExecStart=/home/ubuntu/.nvm/versions/node/v24.18.0/bin/npm run start
 Restart=on-failure
 RestartSec=5
 
