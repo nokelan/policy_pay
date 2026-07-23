@@ -10,6 +10,7 @@ After=network.target
 Type=simple
 User=ubuntu
 WorkingDirectory=/var/www/policy-pay/app
+Environment=PATH=/home/ubuntu/.nvm/versions/node/v24.18.0/bin:/usr/bin:/bin
 EnvironmentFile=/var/www/policy-pay/app/.env.production
 ExecStart=/home/ubuntu/.nvm/versions/node/v24.18.0/bin/npm run notify-listener
 Restart=on-failure
