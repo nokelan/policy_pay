@@ -1,0 +1,4 @@
+{
+  "_comment": "상점명 -> 지갑 pubkey(base58) 매핑. 자연어 정책 설정 시 여기 등록된 이름만 인식됩니다. 실제 사용 전 pubkey를 실제 상점 주소로 교체하세요.",
+  "커피숍": "REPLACE_WITH_REAL_MERCHANT_PUBKEY"
+}
