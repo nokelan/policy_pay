@@ -10,6 +10,9 @@ test-ledger
 .surfpool
 app/.env
 app/agent-keypair.json
+app/agent-keypair-*.json
+app/test-owner-keypair.json
+app/test-agent-keypair.json
 app/test-keys/
 app/notify-config.json
 ui/.env.local

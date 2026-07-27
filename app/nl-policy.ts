@@ -7,7 +7,12 @@ import * as anchor from "@coral-xyz/anchor";
 import { Connection, Keypair, PublicKey, SystemProgram } from "@solana/web3.js";
 
 const MERCHANTS_PATH = path.join(__dirname, "merchants.json");
-const AGENT_KEYPAIR_PATH = path.join(__dirname, "agent-keypair.json");
+
+// policyPda별로 파일을 분리 — 고정 경로 하나를 공유하면 다른 유저가 정책을
+// 생성할 때마다 이전 유저의 agent 개인키가 덮어써져 영구적으로 결제 불가해짐.
+function agentKeypairPath(policyPda: string): string {
+  return path.join(__dirname, `agent-keypair-${policyPda}.json`);
+}
 
 function loadKeypair(p: string): Keypair {
   const raw = JSON.parse(fs.readFileSync(p, "utf-8"));
@@ -96,7 +101,9 @@ async function main() {
   if (!existing) {
     // 최초 등록: 이 정책의 자동결제를 수행할 agent 키를 새로 생성해 로컬에 보관한다.
     const agent = Keypair.generate();
-    fs.writeFileSync(AGENT_KEYPAIR_PATH, JSON.stringify(Array.from(agent.secretKey)));
+    fs.writeFileSync(agentKeypairPath(policyPda.toBase58()), JSON.stringify(Array.from(agent.secretKey)), {
+      mode: 0o600,
+    });
     const validUntil = new anchor.BN(Math.floor(Date.now() / 1000) + 365 * 24 * 60 * 60);
     await program.methods
       .initializePolicy(agent.publicKey, [merchantPubkey], budgetLamports, budgetLamports, validUntil)

@@ -34,14 +34,23 @@ export default function Home() {
   const [notifyStatus, setNotifyStatus] = useState("");
 
   useEffect(() => {
-    if (!publicKey) return;
-    fetch(`/api/notify-config?ownerPubkey=${publicKey.toBase58()}`)
-      .then((res) => res.json())
-      .then((data) => {
-        setChatId(data.chatId ?? "");
-        setBotConfigured(Boolean(data.botConfigured));
+    if (!publicKey || !signMessage) return;
+    (async () => {
+      const ownerPubkey = publicKey.toBase58();
+      const timestamp = Date.now();
+      const message = `policy_pay-notify-config:${ownerPubkey}:${timestamp}`;
+      const signature = await signMessage(new TextEncoder().encode(message));
+      const params = new URLSearchParams({
+        ownerPubkey,
+        timestamp: String(timestamp),
+        signature: JSON.stringify(Array.from(signature)),
       });
-  }, [publicKey]);
+      const res = await fetch(`/api/notify-config?${params.toString()}`);
+      const data = await res.json();
+      setChatId(data.chatId ?? "");
+      setBotConfigured(Boolean(data.botConfigured));
+    })();
+  }, [publicKey, signMessage]);
 
   async function handleSaveNotifyConfig() {
     if (!publicKey) return;
@@ -88,16 +97,30 @@ export default function Home() {
       setStatus("먼저 지갑을 연결하세요.");
       return;
     }
+    if (!signMessage) {
+      setStatus("이 지갑은 메시지 서명을 지원하지 않습니다.");
+      return;
+    }
     if (!text.trim()) return;
 
     setBusy(true);
     setStatus("정책 해석 중...");
 
     try {
+      const ownerPubkey = publicKey.toBase58();
+      const timestamp = Date.now();
+      const message = `policy_pay-parse-policy:${ownerPubkey}:${timestamp}`;
+      const signature = await signMessage(new TextEncoder().encode(message));
+
       const parseRes = await fetch("/api/parse-policy", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text, ownerPubkey: publicKey.toBase58() }),
+        body: JSON.stringify({
+          text,
+          ownerPubkey,
+          timestamp,
+          signature: Array.from(signature),
+        }),
       });
       const parsed: ParseResult & { error?: string } = await parseRes.json();
       if (!parseRes.ok) {

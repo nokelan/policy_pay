@@ -3,7 +3,7 @@
 전제: AWS Lightsail VPS `15.164.189.87`, SSH 키 `autotax_key.pem` (nokel PC 보유), 기존 nginx가 kmediwell.autotaxsystem.co.kr 서비스 중.
 
 ## 0. 확인 필요 (미확인 상태로 진행하지 말 것)
-- [ ] **target/idl/policy_pay.json이 .gitignore의 `target` 규칙에 걸려 GitHub repo에 없음** — VPS에서 `git clone` 후 `npm run notify-listener`, `/api/notify-config` 라우트가 IDL_PATH를 못 찾아 즉시 에러남. 배포 전 IDL만 별도로 커밋(예: `idl/policy_pay.json`)하거나 VPS에 scp로 직접 복사 필요. **결정 후 진행.**
+- [ ] `.gitignore`가 `target/*`를 제외하되 `!target/idl`, `!target/idl/policy_pay.json`으로 예외처리해 IDL은 이미 GitHub repo에 커밋되어 있음 — `git clone`만으로 VPS에도 존재하므로 별도 scp/커밋 불필요. (단, 온체인 프로그램을 재배포하면 IDL이 바뀌므로 재커밋 필요.)
 - [ ] VPS의 Node.js 버전 확인 (`node -v`) — 로컬 개발은 v24.18.0 사용 중. 버전 다르면 nvm으로 동일 버전 설치 권장.
 - [ ] 포트 3100이 비어있는지 확인 (`sudo ss -tlnp | grep 3100`).
 

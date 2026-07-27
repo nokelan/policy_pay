@@ -25,6 +25,8 @@ pub fn handle_policy_pay(ctx: Context<PolicyPay>, amount: u64) -> Result<()> {
         ErrorCode::RecipientNotAllowed
     );
 
+    require!(amount > 0, ErrorCode::ZeroAmount);
+
     let now = Clock::get()?.unix_timestamp;
     require!(now <= policy.valid_until, ErrorCode::PolicyExpired);
     require!(amount <= policy.max_per_tx, ErrorCode::PerTxLimitExceeded);

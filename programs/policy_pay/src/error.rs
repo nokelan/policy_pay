@@ -22,4 +22,6 @@ pub enum ErrorCode {
     RecipientAlreadyRegistered,
     #[msg("Recipient is not currently on the policy's allow list")]
     RecipientNotFound,
+    #[msg("Payment amount must be greater than zero")]
+    ZeroAmount,
 }

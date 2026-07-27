@@ -5,7 +5,9 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "notify-listener": "ts-node notify-listener.ts"
+    "notify-listener": "ts-node notify-listener.ts",
+    "nl-policy": "ts-node nl-policy.ts",
+    "agent-execute": "ts-node agent-execute.ts"
   },
   "keywords": [],
   "author": "",

@@ -5,11 +5,17 @@ import { GoogleGenAI, Type } from "@google/genai";
 import * as anchor from "@coral-xyz/anchor";
 import { Connection, Keypair, PublicKey } from "@solana/web3.js";
 import { checkRateLimit } from "../../../lib/rate-limit";
+import { verifyOwnerSignature } from "../../../lib/signature";
 
 const REPO_ROOT = path.join(process.cwd(), "..");
 const MERCHANTS_PATH = path.join(REPO_ROOT, "app", "merchants.json");
-const AGENT_KEYPAIR_PATH = path.join(REPO_ROOT, "app", "agent-keypair.json");
 const IDL_PATH = path.join(REPO_ROOT, "target", "idl", "policy_pay.json");
+
+// policyPda별로 파일을 분리 — 고정 경로 하나를 공유하면 다른 유저가 정책을
+// 생성할 때마다 이전 유저의 agent 개인키가 덮어써져 영구적으로 결제 불가해짐.
+function agentKeypairPath(policyPda: string): string {
+  return path.join(REPO_ROOT, "app", `agent-keypair-${policyPda}.json`);
+}
 
 interface ParsedIntent {
   merchant: string;
@@ -52,12 +58,18 @@ async function solPerKrw(): Promise<number> {
 }
 
 export async function POST(request: Request) {
-  const { text, ownerPubkey } = await request.json();
-  if (!text || !ownerPubkey) {
-    return NextResponse.json({ error: "text, ownerPubkey는 필수입니다." }, { status: 400 });
+  const { text, ownerPubkey, timestamp, signature } = await request.json();
+  if (!text || !ownerPubkey || !timestamp || !Array.isArray(signature)) {
+    return NextResponse.json(
+      { error: "text, ownerPubkey, timestamp, signature는 필수입니다." },
+      { status: 400 }
+    );
   }
   if (!checkRateLimit(`parse-policy:${ownerPubkey}`, 10, 60 * 1000)) {
     return NextResponse.json({ error: "요청이 너무 잦습니다. 잠시 후 다시 시도하세요." }, { status: 429 });
+  }
+  if (!verifyOwnerSignature("parse-policy", ownerPubkey, timestamp, signature)) {
+    return NextResponse.json({ error: "지갑 서명 검증에 실패했습니다." }, { status: 401 });
   }
 
   const merchants = JSON.parse(fs.readFileSync(MERCHANTS_PATH, "utf-8"));
@@ -88,8 +100,16 @@ export async function POST(request: Request) {
   const existing = await connection.getAccountInfo(policyPda);
 
   if (!existing) {
-    const agent = Keypair.generate();
-    fs.writeFileSync(AGENT_KEYPAIR_PATH, JSON.stringify(Array.from(agent.secretKey)));
+    // 동일 policyPda로 짧은 간격 중복 요청 시 keypair가 새로 덮어써지는 것을 막기 위해
+    // 파일이 이미 있으면 재사용한다(온체인 확정 전 재요청에도 같은 agent가 유지됨).
+    const keypairPath = agentKeypairPath(policyPda.toBase58());
+    const keypairExists = fs.existsSync(keypairPath);
+    const agent = keypairExists
+      ? Keypair.fromSecretKey(Uint8Array.from(JSON.parse(fs.readFileSync(keypairPath, "utf-8"))))
+      : Keypair.generate();
+    if (!keypairExists) {
+      fs.writeFileSync(keypairPath, JSON.stringify(Array.from(agent.secretKey)), { mode: 0o600 });
+    }
     const validUntil = Math.floor(Date.now() / 1000) + 365 * 24 * 60 * 60;
     return NextResponse.json({
       action: "initialize",
