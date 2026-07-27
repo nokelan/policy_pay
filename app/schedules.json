@@ -1,0 +1,4 @@
+{
+  "_comment": "자율결제 스케줄 정의. owner/merchant는 각각 실제 정책 owner pubkey / merchants.json에 등록된 상점명. cron-execute.ts가 intervalSec마다 amountSol을 자동 결제하고 lastRunUnix를 갱신한다.",
+  "schedules": []
+}

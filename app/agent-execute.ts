@@ -17,21 +17,15 @@ function loadKeypair(p: string): Keypair {
   return Keypair.fromSecretKey(Uint8Array.from(raw));
 }
 
-async function main() {
-  const [ownerPubkeyStr, merchantName, amountSolStr] = process.argv.slice(2);
-  if (!ownerPubkeyStr || !merchantName || !amountSolStr) {
-    console.error(
-      "사용법: ts-node agent-execute.ts <ownerPubkey> <merchant-name> <amountSol>\n" +
-        "  실제 등록된 정책(owner)의 agent-keypair로 policyPay를 직접 실행해 자율결제를 증명한다."
-    );
-    process.exit(1);
-  }
-
+export async function executePayment(
+  ownerPubkeyStr: string,
+  merchantName: string,
+  amountSolStr: string
+): Promise<string> {
   const merchants = JSON.parse(fs.readFileSync(MERCHANTS_PATH, "utf-8"));
   const merchantPubkeyStr = merchants[merchantName];
   if (!merchantPubkeyStr || merchantPubkeyStr === "REPLACE_WITH_REAL_MERCHANT_PUBKEY") {
-    console.error(`[오류] 상점 "${merchantName}"의 지갑 주소가 merchants.json에 등록되어 있지 않습니다.`);
-    process.exit(1);
+    throw new Error(`상점 "${merchantName}"의 지갑 주소가 merchants.json에 등록되어 있지 않습니다.`);
   }
   const recipient = new PublicKey(merchantPubkeyStr);
   const owner = new PublicKey(ownerPubkeyStr);
@@ -45,8 +39,7 @@ async function main() {
 
   const keypairPath = agentKeypairPath(policyPda.toBase58());
   if (!fs.existsSync(keypairPath)) {
-    console.error(`[오류] 이 정책(${policyPda.toBase58()})의 agent-keypair가 로컬에 없습니다: ${keypairPath}`);
-    process.exit(1);
+    throw new Error(`이 정책(${policyPda.toBase58()})의 agent-keypair가 로컬에 없습니다: ${keypairPath}`);
   }
   const agent = loadKeypair(keypairPath);
 
@@ -59,22 +52,18 @@ async function main() {
   const before = await (program.account as any).policy.fetch(policyPda);
   const allowed = (before.allowedRecipients as PublicKey[]).some((r) => r.equals(recipient));
   if (!allowed) {
-    console.error(`[오류] "${merchantName}"(${recipient.toBase58()})은 이 정책의 허용 결제처가 아닙니다.`);
-    process.exit(1);
+    throw new Error(`"${merchantName}"(${recipient.toBase58()})은 이 정책의 허용 결제처가 아닙니다.`);
   }
   const nowSec = Math.floor(Date.now() / 1000);
   if (before.validUntil.toNumber() < nowSec) {
-    console.error(`[오류] 정책 유효기간이 만료되었습니다. (validUntil=${before.validUntil.toNumber()})`);
-    process.exit(1);
+    throw new Error(`정책 유효기간이 만료되었습니다. (validUntil=${before.validUntil.toNumber()})`);
   }
   if (amountLamports.gt(before.maxPerTx)) {
-    console.error(`[오류] 건별 한도(${before.maxPerTx.toString()} lamports)를 초과했습니다.`);
-    process.exit(1);
+    throw new Error(`건별 한도(${before.maxPerTx.toString()} lamports)를 초과했습니다.`);
   }
   const remaining = before.budgetLimit.sub(before.spent);
   if (amountLamports.gt(remaining)) {
-    console.error(`[오류] 남은 예산(${remaining.toString()} lamports)을 초과했습니다.`);
-    process.exit(1);
+    throw new Error(`남은 예산(${remaining.toString()} lamports)을 초과했습니다.`);
   }
 
   console.log(
@@ -88,9 +77,20 @@ async function main() {
     .rpc();
 
   console.log(`[OK] 자율결제 실행 완료. tx=${sig}`);
+  return sig;
 }
 
-main().catch((err) => {
-  console.error(`[오류] 자율결제 실행 실패: ${err instanceof Error ? err.message : String(err)}`);
-  process.exit(1);
-});
+if (require.main === module) {
+  const [ownerPubkeyStr, merchantName, amountSolStr] = process.argv.slice(2);
+  if (!ownerPubkeyStr || !merchantName || !amountSolStr) {
+    console.error(
+      "사용법: ts-node agent-execute.ts <ownerPubkey> <merchant-name> <amountSol>\n" +
+        "  실제 등록된 정책(owner)의 agent-keypair로 policyPay를 직접 실행해 자율결제를 증명한다."
+    );
+    process.exit(1);
+  }
+  executePayment(ownerPubkeyStr, merchantName, amountSolStr).catch((err) => {
+    console.error(`[오류] 자율결제 실행 실패: ${err instanceof Error ? err.message : String(err)}`);
+    process.exit(1);
+  });
+}

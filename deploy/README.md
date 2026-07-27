@@ -44,3 +44,11 @@ sudo certbot --nginx -d allowance.autotaxsystem.co.kr
 ## 6. 확인
 - https://allowance.autotaxsystem.co.kr 접속 확인
 - 지갑 연결 → 정책 생성/결제 실행 → 텔레그램 알림 수신까지 end-to-end 테스트
+
+## 7. 크론 기반 자율결제 트리거
+- `app/schedules.json`에 `{ owner, merchant, amountSol, intervalSec, lastRunUnix }` 항목 등록 (owner는 실제 정책 owner pubkey, merchant는 `app/merchants.json`에 등록된 이름).
+- `app/cron-execute.ts`가 `intervalSec`을 경과한 스케줄만 골라 `agent-execute.ts`의 결제 로직을 실행하고, 성공한 건만 `lastRunUnix`를 갱신한다. 한 스케줄이 실패해도 나머지는 계속 처리된다.
+- crontab 등록 (예: 10분마다 확인):
+  ```
+  */10 * * * * cd /var/www/policy-pay/app && npm run cron-execute >> /var/log/policy-pay-cron.log 2>&1
+  ```
