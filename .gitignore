@@ -13,6 +13,7 @@ app/agent-keypair.json
 app/agent-keypair-*.json
 app/test-owner-keypair.json
 app/test-agent-keypair.json
+app/demo-owner-keypair.json
 app/test-keys/
 app/notify-config.json
 ui/.env.local
