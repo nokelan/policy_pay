@@ -74,6 +74,7 @@ async function main() {
   );
   await anchor.web3.sendAndConfirmTransaction(connection, fundTx, [funder]);
   console.log("[OK]   owner and recipients funded on devnet");
+  console.log("       owner pubkey =", owner.publicKey.toBase58());
 
   const wallet = new anchor.Wallet(owner);
   const provider = new anchor.AnchorProvider(connection, wallet, {
@@ -95,7 +96,7 @@ async function main() {
   const validUntil = new anchor.BN(Math.floor(Date.now() / 1000) + 365 * 24 * 60 * 60);
 
   console.log("== 1. initialize_policy (devnet) ==");
-  await program.methods
+  const initSig = await program.methods
     .initializePolicy(agent.publicKey, [recipient.publicKey], budgetLimit, maxPerTx, validUntil)
     .accounts({
       owner: owner.publicKey,
@@ -105,9 +106,10 @@ async function main() {
     .rpc();
   let policy = await (program.account as any).policy.fetch(policyPda);
   console.log("[OK]   policy initialized, budget_limit =", policy.budgetLimit.toString());
+  console.log("       tx =", `https://explorer.solana.com/tx/${initSig}?cluster=devnet`);
 
   console.log("== 2. deposit (devnet) ==");
-  await program.methods
+  const depositSig = await program.methods
     .deposit(new anchor.BN(500_000))
     .accounts({
       owner: owner.publicKey,
@@ -117,11 +119,12 @@ async function main() {
     .rpc();
   const vaultBalance = await connection.getBalance(policyPda);
   console.log("[OK]   policy vault balance =", vaultBalance, "lamports");
+  console.log("       tx =", `https://explorer.solana.com/tx/${depositSig}?cluster=devnet`);
 
   console.log("== 3. policy_pay happy path (devnet) ==");
   const payAmount = new anchor.BN(100_000);
   const recipientBefore = await connection.getBalance(recipient.publicKey);
-  await program.methods
+  const paySig = await program.methods
     .policyPay(payAmount)
     .accounts({
       agent: agent.publicKey,
@@ -137,6 +140,7 @@ async function main() {
     );
   }
   console.log("[OK]   recipient received 100000 lamports on devnet");
+  console.log("       tx =", `https://explorer.solana.com/tx/${paySig}?cluster=devnet`);
 
   console.log("== 4. guard rail: wrong agent (devnet) ==");
   await expectError(
