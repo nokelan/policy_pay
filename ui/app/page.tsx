@@ -270,11 +270,6 @@ export default function Home() {
     <main className="flex-1 flex flex-col items-center gap-8 p-8 pt-24 max-w-xl mx-auto w-full">
       <h1 className="text-3xl font-semibold tracking-tight">Allowance</h1>
       <WalletMultiButton className="transition-colors" />
-      {publicKey && (
-        <p className="text-sm text-white/60">
-          지갑 잔액: {walletBalance === null ? "조회 중..." : `${walletBalance.toFixed(4)} SOL`}
-        </p>
-      )}
 
       <div className="w-full flex flex-col gap-3 border border-white/10 bg-white/[0.03] rounded-xl p-6">
         {!pendingParse && (
@@ -345,7 +340,14 @@ export default function Home() {
       </div>
 
       <div className="w-full flex flex-col gap-3 border border-white/10 bg-white/[0.03] rounded-xl p-6">
-        <h2 className="text-lg font-medium">Vault 예치</h2>
+        <div className="flex items-baseline justify-between">
+          <h2 className="text-lg font-medium">Vault 예치</h2>
+          {publicKey && (
+            <span className="text-xl font-semibold text-accent">
+              {walletBalance === null ? "조회 중..." : `${walletBalance.toFixed(4)} SOL`}
+            </span>
+          )}
+        </div>
         <div className="flex gap-2">
           <input
             type="number"
