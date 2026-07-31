@@ -67,15 +67,19 @@ npm install
 }
 ```
 
-`app/schedules.json` — 자율결제 스케줄(배열 아님, 단일 객체 1건 기준):
+`app/schedules.json` — 자율결제 스케줄 목록(`schedules` 배열로 감싸야 함):
 
 ```json
 {
-  "owner": "<정책 owner pubkey>",
-  "merchant": "커피숍",
-  "amountSol": 0.001,
-  "intervalSec": 60,
-  "lastRunUnix": 0
+  "schedules": [
+    {
+      "owner": "<정책 owner pubkey>",
+      "merchant": "커피숍",
+      "amountSol": 0.001,
+      "intervalSec": 60,
+      "lastRunUnix": 0
+    }
+  ]
 }
 ```
 

@@ -5,6 +5,7 @@ import { useAnchorWallet, useConnection, useWallet } from "@solana/wallet-adapte
 import { WalletMultiButton } from "@solana/wallet-adapter-react-ui";
 import * as anchor from "@coral-xyz/anchor";
 import { PublicKey, SystemProgram } from "@solana/web3.js";
+import { buildSignedMessage } from "../lib/signature";
 
 interface ParseResult {
   action: "initialize" | "update";
@@ -40,7 +41,7 @@ export default function Home() {
     (async () => {
       const ownerPubkey = publicKey.toBase58();
       const timestamp = Date.now();
-      const message = `policy_pay-notify-config:${ownerPubkey}:${timestamp}`;
+      const message = await buildSignedMessage("notify-config:read", ownerPubkey, timestamp);
       const signature = await signMessage(new TextEncoder().encode(message));
       const params = new URLSearchParams({
         ownerPubkey,
@@ -66,7 +67,10 @@ export default function Home() {
     try {
       const ownerPubkey = publicKey.toBase58();
       const timestamp = Date.now();
-      const message = `policy_pay-notify-config:${ownerPubkey}:${timestamp}`;
+      const message = await buildSignedMessage("notify-config:write", ownerPubkey, timestamp, {
+        chatId,
+        botToken: botToken || null,
+      });
       const signature = await signMessage(new TextEncoder().encode(message));
 
       setNotifyStatus("저장 중...");

@@ -68,7 +68,7 @@ export async function POST(request: Request) {
   if (!checkRateLimit(`parse-policy:${ownerPubkey}`, 10, 60 * 1000)) {
     return NextResponse.json({ error: "요청이 너무 잦습니다. 잠시 후 다시 시도하세요." }, { status: 429 });
   }
-  if (!verifyOwnerSignature("parse-policy", ownerPubkey, timestamp, signature)) {
+  if (!(await verifyOwnerSignature("parse-policy", ownerPubkey, timestamp, signature))) {
     return NextResponse.json({ error: "지갑 서명 검증에 실패했습니다." }, { status: 401 });
   }
 
@@ -119,7 +119,7 @@ export async function POST(request: Request) {
       budgetLamports: budgetLamports.toString(),
       budgetSol,
       agentPubkey: agent.publicKey.toBase58(),
-      maxPerTxLamports: budgetLamports.toString(),
+      maxPerTxLamports: budgetLamports.divn(10).toString(),
       validUntil,
     });
   }

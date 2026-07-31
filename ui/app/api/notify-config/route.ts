@@ -59,7 +59,7 @@ export async function GET(request: Request) {
   } catch {
     return NextResponse.json({ error: "signature 형식이 올바르지 않습니다." }, { status: 400 });
   }
-  if (!verifyOwnerSignature("notify-config", ownerPubkey, timestamp, signature)) {
+  if (!(await verifyOwnerSignature("notify-config:read", ownerPubkey, timestamp, signature))) {
     return NextResponse.json({ error: "지갑 서명 검증에 실패했습니다." }, { status: 401 });
   }
   let policyPda: string;
@@ -84,7 +84,12 @@ export async function POST(request: Request) {
   if (!checkRateLimit(`notify-config:POST:${ownerPubkey}`, 5, 60 * 1000)) {
     return NextResponse.json({ error: "요청이 너무 잦습니다. 잠시 후 다시 시도하세요." }, { status: 429 });
   }
-  if (!verifyOwnerSignature("notify-config", ownerPubkey, timestamp, signature)) {
+  if (
+    !(await verifyOwnerSignature("notify-config:write", ownerPubkey, timestamp, signature, {
+      chatId,
+      botToken: botToken || null,
+    }))
+  ) {
     return NextResponse.json({ error: "지갑 서명 검증에 실패했습니다." }, { status: 401 });
   }
   let policyPda: string;

@@ -105,8 +105,9 @@ async function main() {
       mode: 0o600,
     });
     const validUntil = new anchor.BN(Math.floor(Date.now() / 1000) + 365 * 24 * 60 * 60);
+    const maxPerTx = budgetLamports.divn(10);
     await program.methods
-      .initializePolicy(agent.publicKey, [merchantPubkey], budgetLamports, budgetLamports, validUntil)
+      .initializePolicy(agent.publicKey, [merchantPubkey], budgetLamports, maxPerTx, validUntil)
       .accounts({ owner: owner.publicKey, policy: policyPda, systemProgram: SystemProgram.programId })
       .rpc();
     console.log(`[OK] 정책 생성 완료. agent=${agent.publicKey.toBase58()}, budget=${budgetSol.toFixed(6)} SOL, recipient=${intent.merchant}`);

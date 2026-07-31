@@ -6,6 +6,7 @@ import { Connection, Keypair, PublicKey } from "@solana/web3.js";
 
 const MERCHANTS_PATH = path.join(__dirname, "merchants.json");
 const IDL_PATH = path.join(__dirname, "..", "target", "idl", "policy_pay.json");
+const PERIOD_SECONDS = 30 * 24 * 60 * 60;
 
 // nl-policy.ts / parse-policy route.ts와 동일한 policyPda별 agent-keypair 경로 규칙.
 function agentKeypairPath(policyPda: string): string {
@@ -61,7 +62,12 @@ export async function executePayment(
   if (amountLamports.gt(before.maxPerTx)) {
     throw new Error(`건별 한도(${before.maxPerTx.toString()} lamports)를 초과했습니다.`);
   }
-  const remaining = before.budgetLimit.sub(before.spent);
+  // 온체인 handle_policy_pay와 동일한 lazy reset 규칙: 마지막 결제로부터
+  // PERIOD_SECONDS(30일)가 지났으면 실제 tx에서 spent가 0으로 리셋되므로
+  // 사전검사도 이를 반영해야 리셋 직후 결제가 "예산 초과"로 영구 차단되지 않는다.
+  const periodElapsed = nowSec - before.periodStart.toNumber() >= PERIOD_SECONDS;
+  const effectiveSpent = periodElapsed ? new anchor.BN(0) : before.spent;
+  const remaining = before.budgetLimit.sub(effectiveSpent);
   if (amountLamports.gt(remaining)) {
     throw new Error(`남은 예산(${remaining.toString()} lamports)을 초과했습니다.`);
   }
