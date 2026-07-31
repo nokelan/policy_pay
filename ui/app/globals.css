@@ -1,26 +1,35 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #121212;
+  --foreground: #ffffff;
+  --accent: #14f195;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --color-accent: var(--accent);
+  --font-sans: var(--font-space-grotesk);
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-space-grotesk), Helvetica, Arial, sans-serif;
+}
+
+.wallet-adapter-button.wallet-adapter-button-trigger {
+  background-color: var(--accent);
+  color: #000;
+  font-family: var(--font-space-grotesk), Helvetica, Arial, sans-serif;
+}
+
+.wallet-adapter-button-trigger:not([disabled]):hover {
+  background-color: #10c97f;
+}
+
+.wallet-adapter-modal-middle-button {
+  background-color: var(--accent);
+  color: #000;
 }

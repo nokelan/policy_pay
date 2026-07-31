@@ -27,6 +27,8 @@ export default function Home() {
   const [text, setText] = useState("");
   const [status, setStatus] = useState<string>("");
   const [busy, setBusy] = useState(false);
+  const [pendingParse, setPendingParse] = useState<ParseResult | null>(null);
+  const [txSig, setTxSig] = useState<string | null>(null);
 
   const [botToken, setBotToken] = useState("");
   const [chatId, setChatId] = useState("");
@@ -105,6 +107,7 @@ export default function Home() {
 
     setBusy(true);
     setStatus("정책 해석 중...");
+    setTxSig(null);
 
     try {
       const ownerPubkey = publicKey.toBase58();
@@ -128,6 +131,26 @@ export default function Home() {
         return;
       }
 
+      setPendingParse(parsed);
+      setStatus("");
+    } catch (err) {
+      setStatus(`오류: ${err instanceof Error ? err.message : String(err)}`);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function handleCancelConfirm() {
+    setPendingParse(null);
+    setStatus("");
+  }
+
+  async function handleConfirm() {
+    if (!publicKey || !anchorWallet || !pendingParse) return;
+    const parsed = pendingParse;
+
+    setBusy(true);
+    try {
       const idlRes = await fetch("/api/idl");
       const idl = await idlRes.json();
 
@@ -162,10 +185,10 @@ export default function Home() {
           .rpc();
       }
 
-      setStatus(
-        `완료 (${parsed.merchant}, ${parsed.budgetSol.toFixed(6)} SOL). tx: ${sig.slice(0, 12)}...`
-      );
+      setStatus(`완료 (${parsed.merchant}, ${parsed.budgetSol.toFixed(6)} SOL)`);
+      setTxSig(sig);
       setText("");
+      setPendingParse(null);
     } catch (err) {
       setStatus(`오류: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
@@ -175,49 +198,100 @@ export default function Home() {
 
   return (
     <main className="flex-1 flex flex-col items-center gap-8 p-8 pt-24 max-w-xl mx-auto w-full">
-      <h1 className="text-2xl font-semibold">Allowance</h1>
-      <WalletMultiButton />
+      <h1 className="text-3xl font-semibold tracking-tight">Allowance</h1>
+      <WalletMultiButton className="transition-colors" />
 
-      <div className="w-full flex flex-col gap-3">
-        <textarea
-          className="w-full border rounded p-3 min-h-24"
-          placeholder='예: "커피숍 결제로 한달 5만원까지 등록해줘"'
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-        />
-        <button
-          className="border rounded py-2 disabled:opacity-50"
-          disabled={busy || !text.trim()}
-          onClick={handleSubmit}
-        >
-          {busy ? "처리 중..." : "정책 등록/갱신"}
-        </button>
-        {status && <p className="text-sm whitespace-pre-wrap">{status}</p>}
+      <div className="w-full flex flex-col gap-3 border border-white/10 bg-white/[0.03] rounded-xl p-6">
+        {!pendingParse && (
+          <>
+            <textarea
+              className="w-full border border-white/15 bg-white/5 rounded p-3 min-h-24 placeholder:text-white/40 transition-colors focus:outline-none focus:border-accent"
+              placeholder='예: "커피숍 결제로 한달 5만원까지 등록해줘"'
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+            />
+            <button
+              className="bg-accent text-black font-medium rounded py-2 transition-opacity hover:opacity-90 disabled:opacity-40"
+              disabled={busy || !text.trim()}
+              onClick={handleSubmit}
+            >
+              {busy ? "처리 중..." : "정책 등록/갱신"}
+            </button>
+          </>
+        )}
+
+        {pendingParse && (
+          <div className="w-full flex flex-col gap-2 border border-accent/40 bg-accent/5 rounded p-3">
+            <p className="text-sm font-medium">
+              {pendingParse.action === "initialize" ? "새 정책 생성" : "정책 갱신"} 확인
+            </p>
+            <p className="text-sm text-white/70">가맹점: {pendingParse.merchant}</p>
+            <p className="text-sm text-white/70">한도: {pendingParse.budgetSol} SOL</p>
+            <p className="text-sm text-white/70">
+              만료: {new Date(pendingParse.validUntil * 1000).toLocaleDateString()}
+            </p>
+            <div className="flex gap-2 pt-1">
+              <button
+                className="flex-1 bg-accent text-black font-medium rounded py-2 transition-opacity hover:opacity-90 disabled:opacity-40"
+                disabled={busy}
+                onClick={handleConfirm}
+              >
+                {busy ? "처리 중..." : "확인하고 서명"}
+              </button>
+              <button
+                className="flex-1 border border-white/15 rounded py-2 transition-colors hover:border-white/40 disabled:opacity-40"
+                disabled={busy}
+                onClick={handleCancelConfirm}
+              >
+                취소
+              </button>
+            </div>
+          </div>
+        )}
+
+        {status && (
+          <p className="text-sm whitespace-pre-wrap text-white/70">
+            {status}
+            {txSig && (
+              <>
+                {" "}
+                <a
+                  href={`https://explorer.solana.com/tx/${txSig}?cluster=devnet`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-accent underline"
+                >
+                  탐색기에서 보기
+                </a>
+              </>
+            )}
+          </p>
+        )}
       </div>
 
-      <div className="w-full flex flex-col gap-3 border-t pt-6">
+      <div className="w-full flex flex-col gap-3 border border-white/10 bg-white/[0.03] rounded-xl p-6">
         <h2 className="text-lg font-medium">결제 알림 봇 설정</h2>
         <input
           type="password"
-          className="w-full border rounded p-2"
+          className="w-full border border-white/15 bg-white/5 rounded p-2 placeholder:text-white/40 transition-colors focus:outline-none focus:border-accent"
           placeholder={botConfigured ? "설정됨 (변경하려면 새 토큰 입력)" : "Telegram Bot Token"}
           value={botToken}
           onChange={(e) => setBotToken(e.target.value)}
         />
         <input
-          className="w-full border rounded p-2"
+          className="w-full border border-white/15 bg-white/5 rounded p-2 placeholder:text-white/40 transition-colors focus:outline-none focus:border-accent"
           placeholder="Telegram Chat ID"
           value={chatId}
           onChange={(e) => setChatId(e.target.value)}
         />
         <button
-          className="border rounded py-2 disabled:opacity-50"
+          className="border border-white/15 rounded py-2 transition-colors disabled:opacity-40 hover:border-accent hover:text-accent"
           disabled={!publicKey || !chatId || (!botToken && !botConfigured)}
           onClick={handleSaveNotifyConfig}
         >
           알림 봇 저장
         </button>
-        {notifyStatus && <p className="text-sm">{notifyStatus}</p>}
+        {notifyStatus && <p className="text-sm text-white/70">{notifyStatus}</p>}
       </div>
     </main>
   );
