@@ -41,6 +41,26 @@ export default function Home() {
   const [depositStatus, setDepositStatus] = useState("");
   const [depositTxSig, setDepositTxSig] = useState<string | null>(null);
 
+  const [walletBalance, setWalletBalance] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!publicKey) {
+      setWalletBalance(null);
+      return;
+    }
+    let cancelled = false;
+    async function fetchBalance() {
+      const lamports = await connection.getBalance(publicKey!);
+      if (!cancelled) setWalletBalance(lamports / anchor.web3.LAMPORTS_PER_SOL);
+    }
+    fetchBalance();
+    const interval = setInterval(fetchBalance, 15000);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [publicKey, connection]);
+
   useEffect(() => {
     if (!publicKey || !signMessage) return;
     (async () => {
@@ -238,6 +258,7 @@ export default function Home() {
       setDepositStatus(`예치 완료 (${sol} SOL)`);
       setDepositTxSig(sig);
       setDepositAmount("");
+      connection.getBalance(publicKey).then((l) => setWalletBalance(l / anchor.web3.LAMPORTS_PER_SOL));
     } catch (err) {
       setDepositStatus(`오류: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
@@ -249,6 +270,11 @@ export default function Home() {
     <main className="flex-1 flex flex-col items-center gap-8 p-8 pt-24 max-w-xl mx-auto w-full">
       <h1 className="text-3xl font-semibold tracking-tight">Allowance</h1>
       <WalletMultiButton className="transition-colors" />
+      {publicKey && (
+        <p className="text-sm text-white/60">
+          지갑 잔액: {walletBalance === null ? "조회 중..." : `${walletBalance.toFixed(4)} SOL`}
+        </p>
+      )}
 
       <div className="w-full flex flex-col gap-3 border border-white/10 bg-white/[0.03] rounded-xl p-6">
         {!pendingParse && (
