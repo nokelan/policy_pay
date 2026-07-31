@@ -36,6 +36,11 @@ export default function Home() {
   const [botConfigured, setBotConfigured] = useState(false);
   const [notifyStatus, setNotifyStatus] = useState("");
 
+  const [depositAmount, setDepositAmount] = useState("");
+  const [depositBusy, setDepositBusy] = useState(false);
+  const [depositStatus, setDepositStatus] = useState("");
+  const [depositTxSig, setDepositTxSig] = useState<string | null>(null);
+
   useEffect(() => {
     if (!publicKey || !signMessage) return;
     (async () => {
@@ -200,6 +205,46 @@ export default function Home() {
     }
   }
 
+  async function handleDeposit() {
+    if (!publicKey || !anchorWallet) {
+      setDepositStatus("먼저 지갑을 연결하세요.");
+      return;
+    }
+    const sol = Number(depositAmount);
+    if (!sol || sol <= 0) return;
+
+    setDepositBusy(true);
+    setDepositStatus("트랜잭션 서명 대기 중...");
+    setDepositTxSig(null);
+
+    try {
+      const idlRes = await fetch("/api/idl");
+      const idl = await idlRes.json();
+
+      const provider = new anchor.AnchorProvider(connection, anchorWallet, { commitment: "confirmed" });
+      const program = new anchor.Program(idl, provider);
+
+      const [policyPda] = PublicKey.findProgramAddressSync(
+        [Buffer.from("policy"), publicKey.toBuffer()],
+        program.programId
+      );
+      const amountLamports = new anchor.BN(Math.round(sol * anchor.web3.LAMPORTS_PER_SOL));
+
+      const sig = await program.methods
+        .deposit(amountLamports)
+        .accounts({ owner: publicKey, policy: policyPda, systemProgram: SystemProgram.programId })
+        .rpc();
+
+      setDepositStatus(`예치 완료 (${sol} SOL)`);
+      setDepositTxSig(sig);
+      setDepositAmount("");
+    } catch (err) {
+      setDepositStatus(`오류: ${err instanceof Error ? err.message : String(err)}`);
+    } finally {
+      setDepositBusy(false);
+    }
+  }
+
   return (
     <main className="flex-1 flex flex-col items-center gap-8 p-8 pt-24 max-w-xl mx-auto w-full">
       <h1 className="text-3xl font-semibold tracking-tight">Allowance</h1>
@@ -261,6 +306,46 @@ export default function Home() {
                 {" "}
                 <a
                   href={`https://explorer.solana.com/tx/${txSig}?cluster=devnet`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-accent underline"
+                >
+                  탐색기에서 보기
+                </a>
+              </>
+            )}
+          </p>
+        )}
+      </div>
+
+      <div className="w-full flex flex-col gap-3 border border-white/10 bg-white/[0.03] rounded-xl p-6">
+        <h2 className="text-lg font-medium">Vault 예치</h2>
+        <div className="flex gap-2">
+          <input
+            type="number"
+            step="any"
+            min="0"
+            className="flex-1 border border-white/15 bg-white/5 rounded p-2 placeholder:text-white/40 transition-colors focus:outline-none focus:border-accent"
+            placeholder="예치할 SOL 수량"
+            value={depositAmount}
+            onChange={(e) => setDepositAmount(e.target.value)}
+          />
+          <button
+            className="bg-accent text-black font-medium rounded px-4 transition-opacity hover:opacity-90 disabled:opacity-40"
+            disabled={depositBusy || !publicKey || !Number(depositAmount)}
+            onClick={handleDeposit}
+          >
+            {depositBusy ? "처리 중..." : "예치"}
+          </button>
+        </div>
+        {depositStatus && (
+          <p className="text-sm whitespace-pre-wrap text-white/70">
+            {depositStatus}
+            {depositTxSig && (
+              <>
+                {" "}
+                <a
+                  href={`https://explorer.solana.com/tx/${depositTxSig}?cluster=devnet`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-accent underline"
