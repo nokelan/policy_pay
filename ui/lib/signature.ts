@@ -5,7 +5,7 @@ const SIGNATURE_MAX_AGE_MS = 5 * 60 * 1000;
 
 async function hashPayload(payload: Record<string, unknown>): Promise<string> {
   const canonical = JSON.stringify(payload, Object.keys(payload).sort());
-  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(canonical));
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(canonical) as BufferSource);
   return Array.from(new Uint8Array(digest))
     .map((b) => b.toString(16).padStart(2, "0"))
     .join("");
