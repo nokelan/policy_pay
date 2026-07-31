@@ -43,6 +43,10 @@ export default function Home() {
 
   const [walletBalance, setWalletBalance] = useState<number | null>(null);
 
+  const [closeBusy, setCloseBusy] = useState(false);
+  const [closeStatus, setCloseStatus] = useState("");
+  const [closeTxSig, setCloseTxSig] = useState<string | null>(null);
+
   useEffect(() => {
     if (!publicKey) {
       setWalletBalance(null);
@@ -266,6 +270,44 @@ export default function Home() {
     }
   }
 
+  async function handleClosePolicy() {
+    if (!publicKey || !anchorWallet) {
+      setCloseStatus("먼저 지갑을 연결하세요.");
+      return;
+    }
+    if (!window.confirm("정책을 종료하고 Vault의 모든 잔액을 지갑으로 반환합니다. 계속할까요?")) return;
+
+    setCloseBusy(true);
+    setCloseStatus("트랜잭션 서명 대기 중...");
+    setCloseTxSig(null);
+
+    try {
+      const idlRes = await fetch("/api/idl");
+      const idl = await idlRes.json();
+
+      const provider = new anchor.AnchorProvider(connection, anchorWallet, { commitment: "confirmed" });
+      const program = new anchor.Program(idl, provider);
+
+      const [policyPda] = PublicKey.findProgramAddressSync(
+        [Buffer.from("policy"), publicKey.toBuffer()],
+        program.programId
+      );
+
+      const sig = await program.methods
+        .closePolicy()
+        .accounts({ owner: publicKey, policy: policyPda })
+        .rpc();
+
+      setCloseStatus("정책 종료 완료. Vault 잔액이 지갑으로 반환되었습니다.");
+      setCloseTxSig(sig);
+      connection.getBalance(publicKey).then((l) => setWalletBalance(l / anchor.web3.LAMPORTS_PER_SOL));
+    } catch (err) {
+      setCloseStatus(`오류: ${err instanceof Error ? err.message : String(err)}`);
+    } finally {
+      setCloseBusy(false);
+    }
+  }
+
   return (
     <main className="flex-1 flex flex-col items-center gap-8 p-8 pt-24 max-w-xl mx-auto w-full">
       <h1 className="text-3xl font-semibold tracking-tight">Allowance</h1>
@@ -409,6 +451,38 @@ export default function Home() {
           알림 봇 저장
         </button>
         {notifyStatus && <p className="text-sm text-white/70">{notifyStatus}</p>}
+      </div>
+
+      <div className="w-full flex flex-col gap-3 border border-red-500/30 bg-red-500/[0.03] rounded-xl p-6">
+        <h2 className="text-lg font-medium">긴급 회수</h2>
+        <p className="text-sm text-white/60">
+          정책을 즉시 종료하고 Vault에 남은 잔액 전체를 지갑으로 돌려받습니다.
+        </p>
+        <button
+          className="border border-red-500/50 text-red-400 rounded py-2 transition-colors hover:bg-red-500/10 disabled:opacity-40"
+          disabled={closeBusy || !publicKey}
+          onClick={handleClosePolicy}
+        >
+          {closeBusy ? "처리 중..." : "정책 종료 및 잔액 회수"}
+        </button>
+        {closeStatus && (
+          <p className="text-sm whitespace-pre-wrap text-white/70">
+            {closeStatus}
+            {closeTxSig && (
+              <>
+                {" "}
+                <a
+                  href={`https://explorer.solana.com/tx/${closeTxSig}?cluster=devnet`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-accent underline"
+                >
+                  탐색기에서 보기
+                </a>
+              </>
+            )}
+          </p>
+        )}
       </div>
     </main>
   );
